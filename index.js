@@ -9,7 +9,10 @@ const { ObjectId } = require('mongodb')
 const port = process.env.PORT || 5000
 
 app.use(express.json())
-app.use(cors())
+app.use(cors({
+	origin:["http://localhost:5173","https://digital-bazar.netlify.app"],
+	credentials: true   
+}))
 
 // Use environment variables properly
 const uri = `mongodb+srv://${process.env.DB_User}:${process.env.DB_Pass}@cluster0.cc1e1ph.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`
@@ -30,7 +33,7 @@ async function run() {
 		const ordersCollection = database.collection('orders')
 		const usersCollection = database.collection('users')
 		const reviewsCollection = database.collection('reviews')
-		const invoicesCollection = database.collection('invoices');
+		const totalInvoiceCollection = database.collection('invoices');
 
 
 		// Basic route
@@ -343,6 +346,48 @@ app.post('/reviews', async (req, res) => {
 				res.status(500).json({ message: 'Server error' })
 			}
 		})
+		app.get('/invoices', async (req, res) => {
+  try {
+    // Fetch all invoices
+    const invoices = await totalInvoiceCollection.find({}).toArray();
+    res.json(invoices);
+  } catch (err) {
+    console.error("Error fetching invoices:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+		app.post("/invoices", async (req, res) => {
+  try {
+    if (!totalInvoiceCollection) {
+      return res.status(500).json({ message: "Database not connected" });
+    }
+
+    const { orderId, userEmail, items, totalAmount, customer } = req.body;
+
+    if (!orderId || !userEmail || !items || !totalAmount || !customer) {
+      return res.status(400).json({ message: "Required fields missing" });
+    }
+
+    const orderObjectId = ObjectId.isValid(orderId) ? new ObjectId(orderId) : orderId;
+
+    const newInvoice = {
+      orderId: orderObjectId,
+      userEmail,
+      items,
+      totalAmount,
+      customer,
+      createdAt: new Date(),
+    };
+
+    const result = await totalInvoiceCollection.insertOne(newInvoice);
+    res.status(201).json(newInvoice);
+  } catch (err) {
+    console.error("Error creating invoice:", err);
+    res.status(500).json({ message: "Server error while creating invoice" });
+  }
+});
+
 
 		// ✅ Update order status
 		app.put('/orders/:id', async (req, res) => {
@@ -412,50 +457,7 @@ app.post('/reviews', async (req, res) => {
 		console.error('MongoDB connection error:', error)
 	}
 }
-// Get invoices by email
-app.get('/invoices', async (req, res) => {
-  try {
-    const email = req.query.email;
-    if (!email) return res.status(400).json({ message: 'Email required' });
-
-    const invoices = await invoicesCollection.find({ customerEmail: email }).toArray();
-    res.json(invoices);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-app.post("/invoices", async (req, res) => {
-  try {
-    const { orderId, userEmail, items, totalAmount, customer } = req.body;
-
-    // Validate required fields
-    if (!orderId || !userEmail || !items || !totalAmount || !customer) {
-      return res.status(400).json({ message: "Required fields missing" });
-    }
-
-    // Convert orderId to ObjectId if possible
-    const orderObjectId = ObjectId.isValid(orderId)
-      ? new ObjectId(orderId)
-      : orderId;
-
-    const newInvoice = {
-      orderId: orderObjectId,
-      userEmail,
-      items,
-      totalAmount,
-      customer,
-      createdAt: new Date(),
-    };
-
-    const result = await invoicesCollection.insertOne(newInvoice);
-
-    res.status(201).json(newInvoice);
-  } catch (err) {
-    console.error("Error creating invoice:", err);
-    res.status(500).json({ message: "Server error while creating invoice" });
-  }
-});
+ 
 
 
 run().catch(console.dir)
