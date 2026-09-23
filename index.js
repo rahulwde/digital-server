@@ -291,51 +291,56 @@ app.post('/reviews', async (req, res) => {
 		//order
 		// ✅ Orders Collection
 		app.post('/orders', async (req, res) => {
-			try {
-				const {
-					guestId,
-					items,
-					totalPrice,
-					status,
-					customer,
-					advancePayment,
-					paymentProof,
-					transactionId,
-				} = req.body
+	try {
+		const {
+			guestId,
+			items,
+			totalPrice,
+			status,
+			customer,
+		} = req.body
 
-				// ✅ Validation
-				if (
-					!guestId ||
-					!items ||
-					items.length === 0 ||
-					!customer ||
-					!advancePayment
-				) {
-					return res.status(400).json({ message: 'Missing required fields' })
-				}
+		// Validation
+		if (
+			!guestId ||
+			!items ||
+			items.length === 0 ||
+			!customer ||
+			!customer.name ||
+			!customer.email ||
+			!customer.phone ||
+			!customer.address
+		) {
+			return res.status(400).json({
+				message: 'Missing required fields',
+			})
+		}
 
-				// Create order object
-				const order = {
-					guestId,
-					items,
-					totalPrice,
-					status: status || 'pending',
-					createdAt: new Date(),
-					customer,
-					advancePayment,
-					paymentProof: paymentProof || '',
-					transactionId: transactionId || '',
-				}
+		// Create order object
+		const order = {
+			guestId,
+			items,
+			totalPrice,
+			status: status || 'pending',
+			createdAt: new Date(),
+			customer,
+		}
 
-				// Insert into ordersCollection
-				const result = await ordersCollection.insertOne(order)
+		// Insert order
+		const result = await ordersCollection.insertOne(order)
 
-				res.status(201).json({ ...order, _id: result.insertedId })
-			} catch (err) {
-				console.error('Error creating order:', err)
-				res.status(500).json({ message: 'Server error' })
-			}
+		res.status(201).json({
+			...order,
+			_id: result.insertedId,
 		})
+	} catch (err) {
+		console.error('Error creating order:', err)
+
+		res.status(500).json({
+			message: 'Server error',
+		})
+	}
+})
 		// ✅ Get all orders
 		app.get('/orders/all', async (req, res) => {
 			try {
